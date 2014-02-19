@@ -125,15 +125,11 @@ shinyUI(pageWithSidebar(
                         radioButtons("interpolation", "Interpolation type:",
                                      c("Linear" = "linear", "Spline" = "spline", 
                                        "Cubic" = "cubic")))),
-            htmlOutput('metadata')
+            dataTableOutput('metadata')
             ),
-   
-#   if(online == TRUE){
-   tabPanel('Index List',
-     htmlOutput('indexListTable')), #} else {
-#       tabPanel('Index List',
-#     tableOutput('indexListTable'))
-#  },
+
+    tabPanel('Index List',
+      dataTableOutput('indexListTable')),
   
    tabPanel('Calibration Plots',
             tags$head(tags$style(type="text/css", ".jslider {max-width: 500px; }")),
@@ -156,21 +152,11 @@ shinyUI(pageWithSidebar(
             plotOutput('eventreflplot', height = "180px"),
             plotOutput('reflmap', height = "300px")),
 
-#   if(online==TRUE){
-     tabPanel('Table of Calculated Indices',
-              htmlOutput('allIndexTable')), #} else {
-#                tabPanel('Table of Calculated Indices',
-#                tableOutput('allIndexTable'))
-#            },
+   tabPanel('Table of Calculated Indices',
+            dataTableOutput('allIndexTable')), 
    
-#   if(online==TRUE){
    tabPanel('Table of Average Index Values',
-            htmlOutput('summaryIndexTable')), #} else {
-#              tabPanel('Table of Average Index Values',
-#              tableOutput('summaryIndexTable'))
-#            },
-   
-
+            dataTableOutput('summaryIndexTable')), 
    
    tabPanel('Index Plots',
             div(class="row-fluid",

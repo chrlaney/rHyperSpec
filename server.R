@@ -326,26 +326,26 @@ shinyServer(function(input, output) {
   return(df)
  })
  
- createPdf <- function() {
-  temp <- tempfile(fileext=".pdf")
-  pdf(file=temp, height=8, width=11)
-  
-  print(indexlist)
-  
-  dev.off()
-  
-  return(temp)
- }
- 
- output$downloadPdf <- downloadHandler(
-     filename = 'perfreport.pdf',
-     content = function(filepath) {
-             pdffile <- createPdf()
-             on.exit(unlink(pdffile))
-             bytes <- readBin(pdffile, "raw", file.info(pdffile)$size)
-             writeBin(bytes, filepath)
-         }
-     )
+#  createPdf <- function() {
+#   temp <- tempfile(fileext=".pdf")
+#   pdf(file=temp, height=8, width=11)
+#   
+#   print(indexlist)
+#   
+#   dev.off()
+#   
+#   return(temp)
+#  }
+#  
+#  output$downloadPdf <- downloadHandler(
+#      filename = 'perfreport.pdf',
+#      content = function(filepath) {
+#              pdffile <- createPdf()
+#              on.exit(unlink(pdffile))
+#              bytes <- readBin(pdffile, "raw", file.info(pdffile)$size)
+#              writeBin(bytes, filepath)
+#          }
+#      )
 
             
  #### Output simple timestamp and tables ####
@@ -362,56 +362,35 @@ shinyServer(function(input, output) {
   timestamp
  })
 
- output$metadata <- renderGvis({
-  metadata <- projectMetadata()
-  metadata.pl <- gvisTable(metadata,options=list(page='disable', sort = 'disable',
-                                               height=550,width=700))
-  return(metadata.pl)})
- 
- if(online == TRUE){
-  output$allIndexTable <- renderGvis({
-   indices <- getIndices()
-   indices <- indices[,c(1,4:ncol(indices))] 
-   indices.pl <- gvisTable(indices,options=list(page='disable',
-                                                    width=700))
-   return(indices.pl)
-  })} else {
-   output$allIndexTable <- renderTable({
-    indices <- getIndices()
-    indices <- indices[,c(1,4:ncol(indices))]
-    return(indices)
-   })}
-   
- 
-  if(online == TRUE){
-  output$indexListTable <- renderGvis({
-   newindexlist <- indexlist[,c(1,2,7,9)]
-   newindexlist.pl <- gvisTable(newindexlist)
-   return(newindexlist.pl)
-  })} else {
-   output$indexListTable <- renderTable({
-     newindexlist <- indexlist[,c(1,2,7,9)]
-     return(newindexlist)
- })}
- 
- if(online == TRUE){
- output$summaryIndexTable <- renderGvis({
-  indices <- summarizeIndices()
-  indices.pl <- gvisTable(indices,options=list(page='disable', sort = 'disable',
-                                               width=700))
-  return(indices.pl)
- })} else {
-   output$summaryIndexTable <- renderTable({
-     indices <- summarizeIndices()
-     return(indices)
- })}
+  #### Metadata Table ####
+ output$metadata <- renderDataTable({
+  metadata <- projectMetadata()},
+   options = list(bSortClasses = TRUE))
 
+  #### All Calculated Indices Table ####  
+   output$allIndexTable <- renderDataTable({
+    indices <- getIndices()
+    indices <- indices[,c(1,4:ncol(indices))]}, 
+     options = list(bSortClasses = TRUE))
+
+ #### Index List Table ####
+  output$indexListTable <- renderDataTable({
+    indexlist[,c(1,2,7,9)]
+  }, options = list(bSortClasses = TRUE, sPaginationType = "full_numbers",
+    div.dataTables_wrapper = list(c("#719ba7"))))
+  
+  #### Summary Index Table ####
+  output$summaryIndexTable <- renderDataTable({
+  indices <- summarizeIndices()
+ }, options = list(bSortClasses = TRUE))
+  
  #### Download Button content ####
  output$downloadMetadata <- downloadHandler(
   filename = function() {paste('metadata-',getDate(), '-event', input$eventno, '.csv', sep = '')},
   content = function(con) {write.csv(projectMetadata(), con, row.names = FALSE)}
  )
  
+  
  output$downloadEventData <- downloadHandler(
   filename = function() {paste('eventdata-', Sys.Date(), '.csv', sep = '')},
   content = function(con) {write.csv(getEventNormReflWIrrRad(), con, row.names = FALSE)}
