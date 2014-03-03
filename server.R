@@ -25,6 +25,7 @@ shinyServer(function(input, output) {
   return(timestamp)
  })
  
+
  getDate <- reactive({
   date <- substr(as.character(getCalTimestamp()), 1, 10)
   return(date)
@@ -45,6 +46,8 @@ shinyServer(function(input, output) {
  }
  
  getInterpNormRefl <- function(eventdata, calrelfavgs, interpolation){
+  
+   
   #Interpolate the radiance and irradiance data for a single event file.
   #Then calculate normalized reflectance for the event file.
   #Arguments include a single event dataset, the average panel reflectance, and
@@ -116,7 +119,7 @@ shinyServer(function(input, output) {
   #Count the number of event files entered.
   nrow(input$eventfiles)
  })
- 
+
  getCalDataList <- reactive({
   #For each calibration file entered, use the getDataFromFile function to extract
   #the data, then put each data frame into a list. The result is a list of data
@@ -281,7 +284,8 @@ shinyServer(function(input, output) {
  })
  
  projectMetadata <- reactive({
-  df <- data.frame(variable = c("Platform",
+  df <- data.frame(variable = c(
+                          "Platform",
                          "Unispec serial number",
                          "Integration time (ms)",
                          "Sky condition (% cloudy)",
@@ -302,7 +306,8 @@ shinyServer(function(input, output) {
                          "Wavelength interpolation method",
                          "Notes about calibration files",
                          "Notes about event files"))
-    df$value <- c(input$platform,
+    df$value <- c(
+              input$platform,
               input$unispec,
               input$inttime,
               input$skycondition,
@@ -325,37 +330,16 @@ shinyServer(function(input, output) {
               input$eventnotes)
   return(df)
  })
- 
-#  createPdf <- function() {
-#   temp <- tempfile(fileext=".pdf")
-#   pdf(file=temp, height=8, width=11)
-#   
-#   print(indexlist)
-#   
-#   dev.off()
-#   
-#   return(temp)
-#  }
-#  
-#  output$downloadPdf <- downloadHandler(
-#      filename = 'perfreport.pdf',
-#      content = function(filepath) {
-#              pdffile <- createPdf()
-#              on.exit(unlink(pdffile))
-#              bytes <- readBin(pdffile, "raw", file.info(pdffile)$size)
-#              writeBin(bytes, filepath)
-#          }
-#      )
 
             
  #### Output simple timestamp and tables ####
- 
+  
  output$caltimestamp <- renderText({
   #output a timestamp taken from the first white panel calibration file uploaded.
   timestamp <- as.character(getCalTimestamp())
-  timestamp
+  print(timestamp)
  })
- 
+
  output$eventtimestamp <- renderText({
   #output a timestamp taken from the first white panel calibration file uploaded.
   timestamp <- as.character(getEventTimestamp())
@@ -364,24 +348,37 @@ shinyServer(function(input, output) {
 
   #### Metadata Table ####
  output$metadata <- renderDataTable({
-  metadata <- projectMetadata()},
+  metadata <- projectMetadata()
+   write.csv(metadata, "outputFiles/tables/metadata.csv", row.names = FALSE, append = FALSE)
+   metadata
+   },
    options = list(bSortClasses = TRUE))
 
   #### All Calculated Indices Table ####  
    output$allIndexTable <- renderDataTable({
     indices <- getIndices()
-    indices <- indices[,c(1,4:ncol(indices))]}, 
+    indices <- indices[,c(1,4:ncol(indices))]
+    write.csv(indices, "outputFiles/tables/indices-calculated-all.csv", row.names = FALSE, 
+      append = FALSE)
+    indices
+     }, 
      options = list(bSortClasses = TRUE))
 
  #### Index List Table ####
   output$indexListTable <- renderDataTable({
     indexlist[,c(1,2,7,9)]
-  }, options = list(bSortClasses = TRUE, sPaginationType = "full_numbers",
+    write.csv(indexlist, "outputFiles/tables/indices-list.csv", row.names = FALSE, 
+      append = FALSE)
+    indexlist
+     }, options = list(bSortClasses = TRUE, sPaginationType = "full_numbers",
     div.dataTables_wrapper = list(c("#719ba7"))))
   
   #### Summary Index Table ####
   output$summaryIndexTable <- renderDataTable({
   indices <- summarizeIndices()
+  write.csv(indices, "outputFiles/tables/indices-calculated-summary.csv", 
+    row.names = FALSE, append = FALSE)
+  indices  
  }, options = list(bSortClasses = TRUE))
   
  #### Download Button content ####
@@ -390,7 +387,6 @@ shinyServer(function(input, output) {
   content = function(con) {write.csv(projectMetadata(), con, row.names = FALSE)}
  )
  
-  
  output$downloadEventData <- downloadHandler(
   filename = function() {paste('eventdata-', Sys.Date(), '.csv', sep = '')},
   content = function(con) {write.csv(getEventNormReflWIrrRad(), con, row.names = FALSE)}
@@ -406,6 +402,21 @@ shinyServer(function(input, output) {
   content = function(con) {write.csv(summarizeIndices(), con, row.names = FALSE)}
  )
 
+  output$downloadPdfReport <- downloadHandler(filename = "rHyperSpec_pdf_report.pdf",
+    content = function(file){
+      # generate PDF
+      knit2pdf("rHyperSpec_pdf_report.Rnw")
+      
+      # copy pdf to 'file'
+      file.copy("rHyperSpec_pdf_report.pdf", file)
+      
+      # delete generated files
+      file.remove("rHyperSpec_pdf_report.pdf", "rHyperSpec_pdf_report.tex",
+        "rHyperSpec_pdf_report.aux", "rHyperSpec_pdf_report.log")
+    },
+    contentType = "application/pdf"
+  )
+  
  #### Panel Plots ####
  output$calFileSlider <- renderUI({
   #output a slider bar for the panel files, to be used with 'rawcalplot'
@@ -432,7 +443,9 @@ shinyServer(function(input, output) {
    ylab("") + 
    scale_colour_brewer(type = "qual", palette = 6, name = "") +
    theme(legend.position = "top")
-  print(p)
+   ggsave(filename = "outputFiles/plots/calibration_raw_single_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
+   print(p)
  })
  
  output$rawcalirrplots <- renderPlot({
@@ -444,6 +457,8 @@ shinyServer(function(input, output) {
    scale_x_continuous(limits = input$cal_waverange) +
    scale_y_continuous(limits=c(0, 70000)) +
    ylab("Irradiance") + theme(legend.position="none")
+   ggsave(filename = "outputFiles/plots/calibration_raw_irradiance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -456,6 +471,8 @@ shinyServer(function(input, output) {
    scale_x_continuous(limits = input$cal_waverange) +
    scale_y_continuous(limits=c(0, 70000)) +
    ylab("Radiance") + theme(legend.position="none")
+   ggsave(filename = "outputFiles/plots/calibration_raw_radiance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -467,6 +484,8 @@ shinyServer(function(input, output) {
    geom_point(colour = 'darkblue') +
    scale_y_continuous(limits=c(0, 5)) +
    ylab("Avg Panel Reflectance")
+   ggsave(filename = "outputFiles/plots/calibration_reflectance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -497,6 +516,8 @@ shinyServer(function(input, output) {
    ylab("") + 
    scale_colour_brewer(type = "qual", palette = 6, name = "") +
    theme(legend.position = "top")
+   ggsave(filename = "outputFiles/plots/single_event_radiance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -508,7 +529,9 @@ shinyServer(function(input, output) {
    geom_raster() + 
    scale_y_continuous(limits = c(400,1000)) +
    scale_fill_continuous(name="Normalized\nReflectance", limits = c(0,1)) +
-   theme(legend.key.height = unit(1.7, "cm"))
+   theme(legend.key.height = unit(1, "cm"))
+   ggsave(filename = "outputFiles/plots/reflectance_map.png", dpi = 300, width = 6, height = 3, 
+     units = "in")
   print(p)
  })
  
@@ -520,6 +543,8 @@ shinyServer(function(input, output) {
    geom_point() +
    scale_x_continuous(limits = input$event_waverange) +
    ylab("Irradiance") + theme(legend.position="none")
+   ggsave(filename = "outputFiles/plots/event_raw_irradiance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -532,6 +557,8 @@ shinyServer(function(input, output) {
    geom_point() +
    scale_x_continuous(limits = input$event_waverange) +
    ylab("Radiance") + theme(legend.position="none")
+   ggsave(filename = "outputFiles/plots/event_raw_radiance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -544,6 +571,8 @@ shinyServer(function(input, output) {
    scale_x_continuous(limits = input$event_waverange) +
    scale_y_continuous(limits=c(0, 1)) +
    ylab("Avg. Normalized Reflectance")
+   ggsave(filename = "outputFiles/plots/event_reflectance_plot.png", dpi = 300, width = 6, height = 2, 
+     units = "in")
   print(p)
  })
  
@@ -570,7 +599,11 @@ p <- ggplot(data, mapping = aes_mapping1)+
    ylab("Index value") +
    theme(axis.text = element_text(size=12),
          axis.title = element_text(size = 14))
-  print(p)
+  ggsave(filename = "outputFiles/plots/triple_index_plot.png", dpi = 300, width = 6, height = 3, 
+    units = "in")
+   tripleindexplot <- p
+   print(p)
+  
  })
  
  output$triplelegend <- renderPlot({

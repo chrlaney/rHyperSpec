@@ -9,6 +9,9 @@
 setwd("/Users/cmlaney/Documents/Projects/rHyperSpec")
 indexlist <- read.csv("Indices.csv", header = TRUE, strip.white = TRUE, 
   stringsAsFactors = FALSE)
+dir.create("/Users/cmlaney/Documents/Projects/rHyperSpec/outputFiles/plots")
+dir.create("/Users/cmlaney/Documents/Projects/rHyperSpec/outputFiles/reports")
+dir.create("/Users/cmlaney/Documents/Projects/rHyperSpec/outputFiles/tables")
 
 #make sure all of these libraries are installed, and then load them.
 require(shiny)
@@ -19,5 +22,6 @@ require(grid) #not available for 3.0.2
 require(MASS) #for RML method of smoothing
 require(mgcv) #for GAM method of smoothing
 require(RCurl) #check internet connection for googleVis
+require(knitr)
 
 runApp()

@@ -27,8 +27,9 @@ shinyUI(pageWithSidebar(
   
   downloadButton('downloadIndexData', 'Download Index Data'),
   
-  downloadButton('downloadIndexSummaries', 'Download Index Summaries')
+  downloadButton('downloadIndexSummaries', 'Download Index Summaries'),
   
+  downloadButton('downloadPdfReport', 'Download PDF Report')
  ),
    
  mainPanel(
@@ -113,7 +114,7 @@ shinyUI(pageWithSidebar(
                 div(class = "span3",
                 selectInput('wind', 
                             label = 'Wind',
-                            choices = c('negligable' = 'negligable', 'breezy' = 'breezy','windy' = 'windy', 'extremely windy' = 'extremely windy')))),
+                            choices = c('negligable' = 'negligible', 'breezy' = 'breezy','windy' = 'windy', 'extremely windy' = 'extremely windy')))),
    
 
             div(class="row-fluid",
