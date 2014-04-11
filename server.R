@@ -25,7 +25,6 @@ shinyServer(function(input, output) {
   return(timestamp)
  })
  
-
  getDate <- reactive({
   date <- substr(as.character(getCalTimestamp()), 1, 10)
   return(date)
@@ -44,10 +43,14 @@ shinyServer(function(input, output) {
   if(chan == "B"){names(data) <- c("wavelength","irradiance","radiance")}
   return(data)
  }
- 
- getInterpNormRefl <- function(eventdata, calrelfavgs, interpolation){
   
-   
+  getLimitNR <- reactive({
+    limNR <- input$limitNR
+    return(limNR)
+  })
+ 
+  getInterpNormRefl <- function(eventdata, calreflavgs, interpolation){
+  
   #Interpolate the radiance and irradiance data for a single event file.
   #Then calculate normalized reflectance for the event file.
   #Arguments include a single event dataset, the average panel reflectance, and
@@ -55,7 +58,7 @@ shinyServer(function(input, output) {
   #Return a data frame with four columns: wavelength, irradiance, radiance, and 
   #normrefl (normal reflectance)
   data <- eventdata
-  calrefl <- calrelfavgs
+  calrefl <- calreflavgs
   interpolation <- interpolation
   allwaves <- seq(303, 1147, by = 1)
   
@@ -102,11 +105,18 @@ shinyServer(function(input, output) {
   #Step 3: Calculate the final reflectance by comparing the irradiance signal to
   #the mean white panel signal (that is, normalize the data)
   interpdata$normrefl <- (interpdata$refl/interpdata$calrefl)
-  
+
   #Step 4: Remove values outside of the possible range of -1 to 1
-  interpdata$normrefl[which(interpdata$normrefl > 1)] <- NA
-  interpdata$normrefl[which(interpdata$normrefl < -1)] <- NA
-  
+   limitNR <- getLimitNR()
+    if(limitNR == "nl"){}
+   if(limitNR == "lim1"){
+     interpdata$normrefl[which(interpdata$normrefl > 1)] <- 1
+     interpdata$normrefl[which(interpdata$normrefl < -1)] <- -1
+   }
+   if(limitNR == "limNA"){
+     interpdata$normrefl[which(interpdata$normrefl > 1)] <- NA
+     interpdata$normrefl[which(interpdata$normrefl < -1)] <- NA
+   }
   return(interpdata)
  }
  
@@ -273,61 +283,75 @@ shinyServer(function(input, output) {
  
  #### Metadata and database interactions ####
  
- platformInput <-  reactive({
-  project_title <- input$project
-  project_shortname <- sqlQuery(con, paste("SELECT shortname FROM project WHERE 
-                                           title = '", input$project, "'", sep = ""))
-  project_shortname <- as.character(project_shortname[1,1])
-  platforms <- sqlQuery(con, paste("SELECT platform_name FROM projectplatform WHERE 
-                                  project_shortname = '", project_shortname, "'", sep = ""))
-  return(paste(platforms[1,]))
- })
+# platformInput <-  reactive({
+#  project_title <- input$project
+#  project_shortname <- sqlQuery(con, paste("SELECT shortname FROM project WHERE 
+#                                           title = '", input$project, "'", sep = ""))
+#  project_shortname <- as.character(project_shortname[1,1])
+#  platforms <- sqlQuery(con, paste("SELECT platform_name FROM projectplatform WHERE 
+#                                  project_shortname = '", project_shortname, "'", sep = ""))
+#  return(paste(platforms[1,]))
+# })
  
  projectMetadata <- reactive({
   df <- data.frame(variable = c(
-                          "Platform",
-                         "Unispec serial number",
-                         "Integration time (ms)",
-                         "Sky condition (% cloudy)",
-                         "Wind",
-                         "Person who collected data (1)",
-                         "Person who collected data (2)",
-                         "Person who analyzed data",
-                         "Date data analyzed",
-                         "First timestamp for calibration files",
-                         "First timestamp for event files",
-                         "Calibration file names",
-                         "Event file names",
-                         "Number of calibration files",
-                         "Number of event files",
-                         "Upward facing fiber optic channel", 
-                         "Event number for the day",
-                         "Direction of event along transect",
-                         "Wavelength interpolation method",
-                         "Notes about calibration files",
-                         "Notes about event files"))
-    df$value <- c(
-              input$platform,
-              input$unispec,
-              input$inttime,
-              input$skycondition,
-              input$wind,
-              input$eventperson1,
-              input$eventperson2,
-              input$analysisperson,
-              format(Sys.time(), "%Y-%m-%d %H:%M:%S"), 
-              format(getCalTimestamp(), "%Y-%m-%d %H:%M:%S"),
-              format(getEventTimestamp(), "%Y-%m-%d %H:%M:%S"),
-              paste(input$calfiles[,1], collapse = ", "),
-              paste(input$eventfiles[,1], collapse = ", "),
-              length(input$calfiles[,1]),
-              length(input$eventfiles[,1]),
-              input$upchannel,
-              input$eventno, 
-              input$direction, 
-              input$interpolation,
-              input$calnotes,
-              input$eventnotes)
+    "Sampling path",
+    "Unispec serial number",
+    "Upward facing fiber optic channel", 
+    "Integration time (ms)",
+    "Number of files per integration",
+    "Event number for the day",
+    "Person who collected data (1)",
+    "Person who collected data (2)",
+    "Person who analyzed data",
+    "Sky condition by class",
+    "Sky condition % cloudy",
+    "Wind",
+    "Sun angle (start)",
+    "Sun angle (end)",
+    "Date data analyzed",
+    "First timestamp for calibration files",
+    "First timestamp for event files",
+    "Calibration file names",
+    "Event file names",
+    "Number of calibration files",
+    "Number of event files",
+    "Direction of event along transect",
+    "Wavelength interpolation method",
+    "Track condition notes",
+    "Instrumentation notes",
+    "Weather notes",
+    "Data file or collection notes"))
+    
+   df$value <- c(
+      input$samplingpath,
+      input$unispec,
+      input$upchannel,
+      input$inttime,
+      input$intfileno,
+      input$eventno,
+      input$eventperson1,
+      input$eventperson2,
+      input$analysisperson,
+      input$skyclasscondition,
+      input$skycondition,
+      input$wind,
+      input$sunanglestart,
+      input$sunangleend,
+      format(Sys.time(), "%Y-%m-%d %H:%M:%S"), 
+      format(getCalTimestamp(), "%Y-%m-%d %H:%M:%S"),
+      format(getEventTimestamp(), "%Y-%m-%d %H:%M:%S"),
+      paste(input$calfiles[,1], collapse = ", "),
+      paste(input$eventfiles[,1], collapse = ", "),
+      length(input$calfiles[,1]),
+      length(input$eventfiles[,1]),
+      input$direction, 
+      input$interpolation,
+      input$tracknotes,
+      input$instrumentnotes,
+      input$weathernotes,
+      input$datanotes)
+   
   return(df)
  })
 
@@ -362,15 +386,17 @@ shinyServer(function(input, output) {
       append = FALSE)
     indices
      }, 
-     options = list(bSortClasses = TRUE))
+     options = list(bSortClasses = TRUE, sScrollX = "100%", 
+        bScrollCollapse = "true"))
 
  #### Index List Table ####
   output$indexListTable <- renderDataTable({
     indexlist[,c(1,2,7,9)]
-    write.csv(indexlist, "outputFiles/tables/indices-list.csv", row.names = FALSE, 
+    write.csv(indexlist[,c(1,2,7,9)], "outputFiles/tables/indices-list.csv", row.names = FALSE, 
       append = FALSE)
-    indexlist
-     }, options = list(bSortClasses = TRUE, sPaginationType = "full_numbers",
+    indexlist[,c(1,2,7,9)]
+     }, options = list(bSortClasses = TRUE, 
+       sPaginationType = "full_numbers",
     div.dataTables_wrapper = list(c("#719ba7"))))
   
   #### Summary Index Table ####
@@ -443,8 +469,8 @@ shinyServer(function(input, output) {
    ylab("") + 
    scale_colour_brewer(type = "qual", palette = 6, name = "") +
    theme(legend.position = "top")
-   ggsave(filename = "outputFiles/plots/calibration_raw_single_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/calibration_raw_single_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
    print(p)
  })
  
@@ -457,8 +483,8 @@ shinyServer(function(input, output) {
    scale_x_continuous(limits = input$cal_waverange) +
    scale_y_continuous(limits=c(0, 70000)) +
    ylab("Irradiance") + theme(legend.position="none")
-   ggsave(filename = "outputFiles/plots/calibration_raw_irradiance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/calibration_raw_irradiance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -471,8 +497,8 @@ shinyServer(function(input, output) {
    scale_x_continuous(limits = input$cal_waverange) +
    scale_y_continuous(limits=c(0, 70000)) +
    ylab("Radiance") + theme(legend.position="none")
-   ggsave(filename = "outputFiles/plots/calibration_raw_radiance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/calibration_raw_radiance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -482,10 +508,10 @@ shinyServer(function(input, output) {
   p <- ggplot(calrefl, aes(x = wavelength, y = avg)) +
    geom_line(colour = 'darkblue') +
    geom_point(colour = 'darkblue') +
-   scale_y_continuous(limits=c(0, 5)) +
+   scale_y_continuous(limits=c(0, 3)) +
    ylab("Avg Panel Reflectance")
-   ggsave(filename = "outputFiles/plots/calibration_reflectance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/calibration_reflectance_plot.png", dpi = 300, 
+     width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -516,8 +542,8 @@ shinyServer(function(input, output) {
    ylab("") + 
    scale_colour_brewer(type = "qual", palette = 6, name = "") +
    theme(legend.position = "top")
-   ggsave(filename = "outputFiles/plots/single_event_radiance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/single_event_radiance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -525,13 +551,15 @@ shinyServer(function(input, output) {
   #Plot a color map of the normalized reflectance for any given event file 
   #(using the same slider)
   data <- getEventNormRefl()
+  limitNR <- getLimitNR()
+  if(limitNR == "nl"){lim <- 2}else{lim <- 1}
   p <- ggplot(data, aes(x = location, y = wavelength, fill = normrefl)) +
    geom_raster() + 
    scale_y_continuous(limits = c(400,1000)) +
-   scale_fill_continuous(name="Normalized\nReflectance", limits = c(0,1)) +
+   scale_fill_continuous(name="Normalized\nReflectance", limits = c(0,lim)) +
    theme(legend.key.height = unit(1, "cm"))
-   ggsave(filename = "outputFiles/plots/reflectance_map.png", dpi = 300, width = 6, height = 3, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/reflectance_map.png", 
+     dpi = 300, width = 6, height = 3, units = "in")
   print(p)
  })
  
@@ -543,8 +571,8 @@ shinyServer(function(input, output) {
    geom_point() +
    scale_x_continuous(limits = input$event_waverange) +
    ylab("Irradiance") + theme(legend.position="none")
-   ggsave(filename = "outputFiles/plots/event_raw_irradiance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/event_raw_irradiance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -557,8 +585,8 @@ shinyServer(function(input, output) {
    geom_point() +
    scale_x_continuous(limits = input$event_waverange) +
    ylab("Radiance") + theme(legend.position="none")
-   ggsave(filename = "outputFiles/plots/event_raw_radiance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
+   ggsave(filename = "outputFiles/plots/event_raw_radiance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
   print(p)
  })
  
@@ -569,11 +597,11 @@ shinyServer(function(input, output) {
    geom_point(colour = 'darkblue') +
    geom_smooth() +                                 
    scale_x_continuous(limits = input$event_waverange) +
-   scale_y_continuous(limits=c(0, 1)) +
+   scale_y_continuous(limits=c(0, 2)) +
    ylab("Avg. Normalized Reflectance")
-   ggsave(filename = "outputFiles/plots/event_reflectance_plot.png", dpi = 300, width = 6, height = 2, 
-     units = "in")
-  print(p)
+   ggsave(filename = "outputFiles/plots/event_reflectance_plot.png", 
+     dpi = 300, width = 6, height = 2, units = "in")
+   print(p)
  })
  
  #### Single index plots ####
