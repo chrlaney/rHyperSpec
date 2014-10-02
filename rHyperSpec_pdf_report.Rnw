@@ -1,0 +1,196 @@
+\documentclass[letterpaper]{article}
+\author{}
+\usepackage{longtable} %allow long form tables
+\usepackage{rotating} %allow for tables to be rotated [not used currently]
+\usepackage[margin=0.5in]{geometry}
+\title{rHyperSpec Results} 
+\begin{document}
+\maketitle
+
+<<setup, results='hide', echo=FALSE>>=
+  library(xtable)
+  setwd("/Users/cmlaney/Documents/Projects/rHyperSpec")
+  addtorow          <- list()
+  addtorow$pos      <- list()
+  addtorow$pos[[1]] <- c(0)
+  addtorow$command  <- c(paste("\\hline \n",
+                               "\\endhead \n",
+                               "\\hline \n",
+                               "{\\footnotesize Continued on next page} \n",
+                               "\\endfoot \n",
+                               "\\endlastfoot \n",sep=""))     
+@
+
+<<metadata_table, results='hide', echo=FALSE>>=
+  mddata <- read.csv("outputFiles/tables/metadata.csv")
+  mdtable <- xtable(mddata, caption = "\\textbf{Metadata for hyperspectral data analysis}", 
+    align = "llp{12cm}", floating = F, latex.environments = "left")
+@
+
+
+<<print_metadata, results = 'asis', echo=FALSE>>=
+    print(mdtable, 
+      tabular.environment = "longtable", 
+      floating = FALSE,
+      include.rownames = FALSE,  # because addtorow will substitute the default row names 
+      add.to.row = addtorow,     # this is where you actually make the substitution
+      hline.after=c(-1), 
+      caption.placement = "top")
+@
+
+\newpage
+
+\begin{figure}[h!]
+  \centering
+  \caption{Raw Calibration Panel Irradiance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/calibration_raw_irradiance_plot.png}
+  \label{fig:cal_irrad}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \caption{Raw Calibration Panel Radiance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/calibration_raw_radiance_plot.png}
+  \label{fig:cal_rad}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \caption{Calibration Panel Reflectance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/calibration_reflectance_plot.png}
+  \label{fig:cal_refl}
+\end{figure}
+
+\newpage
+
+\begin{figure}[h!]
+  \centering
+  \caption{Raw Event Irradiance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/event_raw_irradiance_plot.png}
+  \label{fig:event_irrad}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \caption{Raw Event Radiance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/event_raw_radiance_plot.png}
+  \label{fig:event_rad}
+\end{figure}
+
+\begin{figure}[h!]
+  \centering
+  \caption{Event Average Normalized Reflectance}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/event_reflectance_plot.png}
+  \label{fig:event_refl}
+\end{figure}
+
+\newpage
+\begin{figure}[h!]
+  \centering
+  \caption{Reflectance Map (by location and wavelength)}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/reflectance_map.png}
+  \label{fig:refl_map}
+\end{figure}
+\begin{figure}[h!]
+  \centering
+  \caption{Plot of selected three indices (see legend)}
+  \includegraphics[width=\columnwidth]{outputFiles/plots/triple_index_plot.png}
+  \label{fig:triple_index_plot}
+\end{figure}
+
+\newpage
+<<index_list_table, results='hide', echo=FALSE>>=
+  indexdata <- read.csv("Indices.csv")
+  indextable <- xtable(indexdata[,c(1,2,7,9)], caption = "\\textbf{Indices Calculated by rHyperSpec.} These indices come from a list kindly provided by Fred Huemmrich. The list may be updated periodically.", 
+    digits = 2, align = "lp{3cm}p{2cm}p{3cm}p{7cm}")
+@
+
+<<print_index_list, results = 'asis', echo=FALSE>>=
+print(indextable, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top")
+@
+
+
+\newpage
+<<indices_calculated_summary_table, results='hide', echo=FALSE>>=
+  cisdata <- read.csv("outputFiles/tables/indices-calculated-summary.csv")
+  cistable <- xtable(cisdata, caption = "\\textbf{Summary of Calculated Indices}", digits = 2)
+@
+
+<<print_index_summary, results = 'asis', echo=FALSE>>=
+print(cistable, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top")
+@
+
+\newpage
+
+<<indices_calculated_all_table_1, results='hide', echo=FALSE>>=
+  ciadata <- read.csv("outputFiles/tables/indices-calculated-all.csv")
+  ciatable1 <- xtable(ciadata[,1:12], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 1}", digits = 3)
+@
+
+<<print_index_all_1, results = 'asis', echo=FALSE>>=
+print(ciatable1, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+<<indices_calculated_all_table_2, results='hide', echo=FALSE>>=
+  ciatable2 <- xtable(ciadata[,c(1,13:23)], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 2}", digits = 3)
+@
+
+<<print_index_all_2, results = 'asis', echo=FALSE>>=
+print(ciatable2, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+<<indices_calculated_all_table_3, results='hide', echo=FALSE>>=
+  ciatable3 <- xtable(ciadata[,c(1,24:35)], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 3}", digits = 3)
+@
+
+<<print_index_all_3, results = 'asis', echo=FALSE>>=
+print(ciatable3, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+<<indices_calculated_all_table_4, results='hide', echo=FALSE>>=
+  ciatable4 <- xtable(ciadata[,c(1,36:47)], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 4}", digits = 3)
+@
+
+<<print_index_all_4, results = 'asis', echo=FALSE>>=
+print(ciatable4, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+<<indices_calculated_all_table_5, results='hide', echo=FALSE>>=
+  ciatable5 <- xtable(ciadata[,c(1,48:59)], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 5}", digits = 3)
+@
+
+<<print_index_all_5, results = 'asis', echo=FALSE>>=
+print(ciatable5, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+<<indices_calculated_all_table_6, results='hide', echo=FALSE>>=
+  ciatable6 <- xtable(ciadata[,c(1,60:ncol(ciadata))], 
+  caption = "\\textbf{Calculated Indices for Each Location, Group 6}", digits = 3)
+@
+\flushleft
+<<print_index_all_6, results = 'asis', echo=FALSE>>=
+print(ciatable6, tabular.environment = "longtable", floating = FALSE,
+      include.rownames = FALSE,  add.to.row = addtorow,    
+      hline.after=c(-1), caption.placement = "top", latex.environments = "left")
+@
+
+\end{document}
