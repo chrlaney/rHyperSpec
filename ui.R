@@ -169,7 +169,7 @@ shinyUI(pageWithSidebar(
 
     tabPanel('Index List',
       dataTableOutput('indexListTable')),
-  
+ 
    tabPanel('Calibration Plots',
             tags$head(tags$style(type="text/css", ".jslider {max-width: 500px; }")),
             uiOutput('calWaveSlider'),
