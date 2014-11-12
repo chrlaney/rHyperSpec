@@ -1,6 +1,18 @@
 #ui.R
 #For rHyperSpec_shinyapp
 
+#install and load required libraries
+require(shiny)
+require(ggplot2)
+require(reshape2)
+require(scales)
+require(grid) #not available for 3.0.2
+require(MASS) #for RML method of smoothing
+require(mgcv) #for GAM method of smoothing
+require(RCurl) #check internet connection for googleVis
+require(knitr)
+
+source("sources/rHyperSpec_shinyapp.R")
 
 shinyUI(pageWithSidebar(
 

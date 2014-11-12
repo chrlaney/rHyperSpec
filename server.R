@@ -2,10 +2,8 @@
 #For rHyperSpec_shinyapp
 
 #Set working directory
-if(.Platform$OS.type == "unix"){setwd("/Users/cmlaney/Documents/Projects/rHyperSpec/rHyperSpec_ShinyApp")} else if
-(.Platform$OS.type == "windows"){setwd("C:/Users/cmlaney/Documents/Projects/rHyperSpec/rHyperSpec_ShinyApp")}
-
-source("rHyperSpec_shinyapp.R")
+#if(.Platform$OS.type == "unix"){setwd("/Users/cmlaney/Documents/GitHub/JornadaShinyApps/rHyperSpec")} else if
+#(.Platform$OS.type == "windows"){setwd("C:/Users/cmlaney/Documents/Projects/rHyperSpec/rHyperSpec_ShinyApp")}
 
 shinyServer(function(input, output) {
   startdir <- getwd()
@@ -40,7 +38,7 @@ shinyServer(function(input, output) {
     #create directories for output files. Be sure to copy these folders to another place 
     #with the correct date and other info before running the program on another batch of files.
     time <- as.character(format(getEventTimestamp(), "%Y%m%d-%H%M%S"))
-    folder <- paste(getwd(), "/outputFiles-", time, sep = "")
+    folder <- paste(getwd(), "/output/outputFiles-", time, sep = "")
     dir.create(folder)
     setwd(folder)
     dir.create("plots")
@@ -461,8 +459,10 @@ shinyServer(function(input, output) {
                                                 file.copy("rHyperSpec_pdf_report.pdf", file)
                                                 
                                                 # delete generated files
-                                                file.remove("rHyperSpec_pdf_report.pdf", "rHyperSpec_pdf_report.tex",
-                                                            "rHyperSpec_pdf_report.aux", "rHyperSpec_pdf_report.log")
+                                                file.remove("rHyperSpec_pdf_report.pdf", 
+                                                            "rHyperSpec_pdf_report.tex",
+                                                            "rHyperSpec_pdf_report.aux", 
+                                                            "rHyperSpec_pdf_report.log")
                                               },
                                               contentType = "application/pdf"
   )

@@ -9,7 +9,6 @@
 
 <<setup, results='hide', echo=FALSE>>=
   library(xtable)
-  setwd("/Users/cmlaney/Documents/Projects/rHyperSpec")
   addtorow          <- list()
   addtorow$pos      <- list()
   addtorow$pos[[1]] <- c(0)
@@ -22,7 +21,7 @@
 @
 
 <<metadata_table, results='hide', echo=FALSE>>=
-  mddata <- read.csv("outputFiles/tables/metadata.csv")
+  mddata <- read.csv("output/outputFiles/tables/metadata.csv")
   mdtable <- xtable(mddata, caption = "\\textbf{Metadata for hyperspectral data analysis}", 
     align = "llp{12cm}", floating = F, latex.environments = "left")
 @
