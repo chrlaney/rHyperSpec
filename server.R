@@ -1,14 +1,9 @@
 #server.R
 #For rHyperSpec_shinyapp
 
-#Set working directory
-#if(.Platform$OS.type == "unix"){setwd("/Users/cmlaney/Documents/GitHub/JornadaShinyApps/rHyperSpec")} else if
-#(.Platform$OS.type == "windows"){setwd("C:/Users/cmlaney/Documents/Projects/rHyperSpec/rHyperSpec_ShinyApp")}
-
 shinyServer(function(input, output) {
-  startdir <- getwd()
-  #### Reactive Functions ####
   
+  #### Reactive Functions ####
   getCalTimestamp <- reactive({
     #Read the first white panel calibration file, extract the timestamp 
     data <- read.table(as.character(input$calfiles[1,4]),skip = 2, nrow = 1,
@@ -17,6 +12,33 @@ shinyServer(function(input, output) {
     timestamp <- sub(as.vector(data[1,1]), pattern = "Time:       ", replacement = "")
     timestamp <- as.POSIXct(timestamp, format = "%m/%d/%Y %I:%M:%S %p")
     return(timestamp)
+  })
+  
+  getSoftwareVersion <- reactive({
+    #Read the first white panel calibration file, extract the software and version 
+    line <- read.table(as.character(input$calfiles[1,4]),skip = 1, nrow = 1,
+                       fill = FALSE, header = FALSE, 
+                       stringsAsFactors = FALSE, strip.white = TRUE)
+    software <- sub(as.vector(line[1,1]), pattern = "Remarks:    SW=", replacement = "")
+    return(software)
+  })
+  
+  getIntegrationTime <- reactive({
+    #Read the first white panel calibration file, extract the integration time
+    line <- read.table(as.character(input$calfiles[1,4]),skip = 7, nrow = 1,
+                       fill = FALSE, header = FALSE, 
+                       stringsAsFactors = FALSE, strip.white = TRUE)
+    inttime <- sub(as.vector(line[1,1]), pattern = "Integration:  ", replacement = "")
+    return(inttime)
+  })
+  
+  getNumberScans <- reactive({
+    #Read the first white panel calibration file, extract the number of scans used per file
+    line <- read.table(as.character(input$calfiles[1,4]),skip = 8, nrow = 1,
+                       fill = FALSE, header = FALSE, 
+                       stringsAsFactors = FALSE, strip.white = TRUE)
+    scans <- sub(as.vector(line[1,1]), pattern = "Number Scans: ", replacement = "")
+    return(scans)
   })
   
   getEventTimestamp <- reactive({
@@ -34,17 +56,6 @@ shinyServer(function(input, output) {
     return(date)
   })
   
-  makeFolders <- reactive({
-    #create directories for output files. Be sure to copy these folders to another place 
-    #with the correct date and other info before running the program on another batch of files.
-    time <- as.character(format(getEventTimestamp(), "%Y%m%d-%H%M%S"))
-    folder <- paste(getwd(), "/output/outputFiles-", time, sep = "")
-    dir.create(folder)
-    setwd(folder)
-    dir.create("plots")
-    dir.create("tables")
-  })
-
   getDataFromFile <- function(filepath, chan){
     #Extract the data from an .spu file. The resulting data frame has three
     #columns: wavelength, radiance, and irradiance. If the user checks that the
@@ -296,23 +307,11 @@ shinyServer(function(input, output) {
     return(results.2)
   })
   
-  #### Metadata and database interactions ####
-  
-  # platformInput <-  reactive({
-  #  project_title <- input$project
-  #  project_shortname <- sqlQuery(con, paste("SELECT shortname FROM project WHERE 
-  #                                           title = '", input$project, "'", sep = ""))
-  #  project_shortname <- as.character(project_shortname[1,1])
-  #  platforms <- sqlQuery(con, paste("SELECT platform_name FROM projectplatform WHERE 
-  #                                  project_shortname = '", project_shortname, "'", sep = ""))
-  #  return(paste(platforms[1,]))
-  # })
-  
   projectMetadata <- reactive({
-    makeFolders()
     df <- data.frame(variable = c(
       "Sampling path",
       "Unispec serial number",
+      "Software and version",
       "Upward facing fiber optic channel", 
       "Integration time (ms)",
       "Number of files per integration",
@@ -321,10 +320,7 @@ shinyServer(function(input, output) {
       "Person who collected data (2)",
       "Person who analyzed data",
       "Sky condition by class",
-      "Sky condition % cloudy",
       "Wind",
-      "Sun angle (start)",
-      "Sun angle (end)",
       "Date data analyzed",
       "First timestamp for calibration files",
       "First timestamp for event files",
@@ -342,9 +338,10 @@ shinyServer(function(input, output) {
     df$value <- c(
       input$samplingpath,
       input$unispec,
+      getSoftwareVersion(),
       input$upchannel,
-      input$inttime,
-      input$intfileno,
+      getIntegrationTime(),
+      getNumberScans(),
       input$eventno,
       input$eventperson1,
       input$eventperson2,
@@ -371,6 +368,162 @@ shinyServer(function(input, output) {
     return(df)
   })
   
+  plotCalIrradiance <- reactive({
+    #Plot all of the irradiance for a given set of panel files
+    data <- getCalDataFrame()
+    p <- ggplot(data, aes(x = wavelength, y = irradiance, colour = filename)) + 
+      geom_line()+
+      geom_point() +
+      scale_x_continuous(limits = input$cal_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 70000)) +
+      ylab("Irradiance") + 
+      theme(legend.position="none",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotCalRadiance <- reactive({
+    #Plot all of the radiance for a given set of panel files
+    data <- getCalDataFrame()
+    p <- ggplot(data, aes(x = wavelength, y = radiance, colour = filename)) + 
+      geom_line()+
+      geom_point() +
+      scale_x_continuous(limits = input$cal_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 70000)) +
+      ylab("Radiance") + 
+      theme(legend.position="none",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotCalIrrRadSingle <- reactive({
+    #Plot the irradiance and radiance for any given (using a slider) panel file.
+    files <- getCalDataList()
+    p <- ggplot(files[[input$calfileslider]], aes(x = wavelength)) + 
+      geom_line(aes(y = irradiance, color = 'irradiance'))+
+      geom_line(aes(y = radiance, color = 'radiance')) +
+      geom_point(aes(y = irradiance, color = 'irradiance')) +
+      geom_point(aes(y = radiance, color = 'radiance')) +
+      scale_x_continuous(limits = input$cal_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 70000)) +
+      ylab("") + 
+      scale_colour_brewer(type = "qual", palette = 6, name = "") +
+      theme(legend.position = "top",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotEventIrradiance <- reactive({
+    #Plot all of the irradiance for a given set of panel files
+    data <- getEventDataFrame()
+    p <- ggplot(data, aes(x = wavelength, y = irradiance, colour = filename)) + 
+      geom_line()+
+      geom_point() +
+      scale_x_continuous(limits = input$event_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 30000)) +
+      ylab("Irradiance") + 
+      theme(legend.position="none",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotEventRadiance <- reactive({
+    #Plot all of the radiance for a given set of panel files
+    data <- getEventDataFrame()
+    p <- ggplot(data, aes(x = wavelength, y = radiance, colour = filename)) + 
+      geom_line()+
+      geom_point() +
+      scale_x_continuous(limits = input$event_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 30000)) +
+      ylab("Radiance") + 
+      theme(legend.position="none",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotEventIrrRadSingle <- reactive({
+    #Plot the irradiance and radiance for any given (using a slider) panel file.
+    files <- getEventDataList()
+    p <- ggplot(files[[input$eventfileslider]], aes(x = wavelength)) + 
+      geom_line(aes(y = irradiance, color = 'irradiance'))+
+      geom_line(aes(y = radiance, color = 'radiance')) +
+      geom_point(aes(y = irradiance, color = 'irradiance')) +
+      geom_point(aes(y = radiance, color = 'radiance')) +
+      scale_x_continuous(limits = input$event_waverange,
+                         breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 30000)) +
+      ylab("") + 
+      scale_colour_brewer(type = "qual", palette = 6, name = "") +
+      theme(legend.position = "top",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotAvgCalRefl <- reactive({
+    #Plot the average reflectance for the calibration panel
+    calrefl <- getAvgCalRefl()
+    p <- ggplot(calrefl, aes(x = wavelength, y = avg)) +
+      geom_line(colour = 'darkblue') +
+      geom_point(colour = 'darkblue') +
+      scale_x_continuous(breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 4)) +
+      ylab("Avg Panel Reflectance") +
+      theme(legend.position = "top",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+
+  plotAvgNormRefl <- reactive({
+    #Plot average normalized reflectance for the event files
+    p <- ggplot(getEventAvgNormRefl(), aes(x = wavelength, y = avgnormrefl)) +
+      geom_line(colour = 'darkblue') +
+      geom_point(colour = 'darkblue') +
+      geom_smooth() +                                 
+      scale_x_continuous(breaks = c(seq(400,1100,100))) +
+      scale_y_continuous(limits=c(0, 2)) +
+      ylab("Avg. Normalized Reflectance") +
+      theme(legend.position = "top",
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotReflHeatMap <- reactive({
+    #Plot a color map of the normalized reflectance for any given event file 
+    #(using the same slider)
+    data <- getEventNormRefl()
+    limitNR <- getLimitNR()
+    if(limitNR == "nl"){lim <- 2}else{lim <- 1}
+    p <- ggplot(data, aes(x = location, y = wavelength, fill = normrefl)) +
+      geom_raster() + 
+      scale_y_continuous(limits = c(400,1000)) +
+      scale_fill_continuous(name="Normalized\nReflectance", limits = c(0,lim)) +
+      theme(legend.key.height = unit(1, "cm"),
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
   
   #### Output simple timestamp and tables ####
   
@@ -389,52 +542,135 @@ shinyServer(function(input, output) {
   #### Metadata Table ####
   output$metadata <- renderDataTable({
     metadata <- projectMetadata()
-    write.csv(metadata, "tables/metadata.csv", row.names = FALSE, append = FALSE)
     metadata
+  }, options = list(bSortClasses = TRUE))
+  
+  #### Index List Table ####
+  output$indexListTable <- renderDataTable(
+    indexlist[,c(1,2,7,9)],
+    options = list(orderClasses = TRUE, 
+                   iDisplayLength = 10,
+                   #columnDefs = list(list(width = c("15%","15%", "15%", "55%"))),
+                   class="display compact",
+                   pagingType = "full_numbers"))
+  
+  #### Locations Table ####
+  output$locations <- renderDataTable({
+    locations <- read.csv(input$location_info[1,4], header = TRUE, stringsAsFactors = FALSE)
+    locations
   },
   options = list(bSortClasses = TRUE))
   
- #### All Calculated Indices Table ####  
+  #### All Calculated Indices Table ####  
   output$allIndexTable <- renderDataTable({
     indices <- getIndices()
     indices <- indices[,c(1,4:ncol(indices))]
-    write.csv(indices, "tables/indices-calculated-all.csv", row.names = FALSE, 
-              append = FALSE)
     indices
   }, 
   options = list(bSortClasses = TRUE, sScrollX = "100%", 
                  bScrollCollapse = "true"))
- 
-  #### Index List Table ####
-  output$indexListTable <- renderDataTable({
-    eventdata <- getEventNormReflWIrrRad()
-    write.csv(eventdata, "tables/rad_irr_refl_data.csv", 
-              row.names = FALSE, append = FALSE)
-    indexlist[,c(1,2,7,9)]
-    write.csv(indexlist[,c(1,2,7,9)], "tables/indices-list.csv", row.names = FALSE, 
-              append = FALSE)
-
-    indexlist[,c(1,2,7,9)]
-  }, options = list(bSortClasses = TRUE, 
-                    sPaginationType = "full_numbers",
-                    div.dataTables_wrapper = list(c("#719ba7"))))
   
   #### Summary Index Table ####
   output$summaryIndexTable <- renderDataTable({
     indices <- summarizeIndices()
     
-    write.csv(indices, "tables/indices-calculated-summary.csv", 
-              row.names = FALSE, append = FALSE)
+    #   write.csv(indices, "tables/indices-calculated-summary.csv", 
+    #              row.names = FALSE, append = FALSE)
     indices  
   }, options = list(bSortClasses = TRUE))
   
-
   #### Download Button content ####
   output$downloadMetadata <- downloadHandler(
     filename = function() {paste('metadata-',getDate(), '-event', input$eventno, '.csv', sep = '')},
     content = function(con) {write.csv(projectMetadata(), con, row.names = FALSE)}
   )
   
+  output$downloadCalIrradiancePlot <- downloadHandler(
+    filename = function() {paste('plot_cal-irradiance_',getDate(), '-event', 
+                                 input$eventno, ".png", sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotCalIrradiance())   
+      dev.off()
+    })
+  
+  output$downloadCalRadiancePlot <- downloadHandler(
+    filename = function() {paste('plot_cal-radiance_',getDate(), '-event', 
+                                 input$eventno, ".png", sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotCalRadiance())   
+      dev.off()
+    })
+  
+  output$downloadCalSingleIrrRadPlot <- downloadHandler(
+    filename = function() {paste('plot_cal-irr-rad_',getDate(), '-event', 
+                                 input$eventno, '-file', input$calfileslider, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotCalIrrRadSingle())   
+      dev.off()
+    })
+  
+  output$downloadEventIrradiancePlot <- downloadHandler(
+    filename = function() {paste('plot_event-irradiance_',getDate(), '-event', 
+                                 input$eventno, ".png", sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotEventIrradiance())   
+      dev.off()
+    })
+  
+  output$downloadEventRadiancePlot <- downloadHandler(
+    filename = function() {paste('plot_event-radiance_',getDate(), '-event', 
+                                 input$eventno, ".png", sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotEventRadiance())   
+      dev.off()
+    })
+  
+  output$downloadEventSingleIrrRadPlot <- downloadHandler(
+    filename = function() {paste('plot_event-irr-rad_',getDate(), '-event', 
+                                 input$eventno, '-file', input$calfileslider, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotEventIrrRadSingle())   
+      dev.off()
+    })
+  
+  output$downloadAvgCalReflPlot <- downloadHandler(
+    filename = function() {paste('plot_avg-cal-refl_',getDate(), '-event', 
+                                 input$eventno, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotAvgCalRefl())   
+      dev.off()
+    })
+  
+  output$downloadAvgNormReflPlot <- downloadHandler(
+    filename = function() {paste('plot_avg-norm-refl_',getDate(), '-event', 
+                                 input$eventno, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 2.5, units = "in", res = 300)
+      print(plotAvgNormRefl())   
+      dev.off()
+    })
+  
+  output$downloadReflHeatMap <- downloadHandler(
+    filename = function() {paste('plot_refl-heatmap_',getDate(), '-event', 
+                                 input$eventno, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 3, units = "in", res = 300)
+      print(plotReflHeatMap())   
+      dev.off()
+    })
+    
   output$downloadEventData <- downloadHandler(
     filename = function() {paste('eventdata-', Sys.Date(), '.csv', sep = '')},
     content = function(con) {write.csv(getEventNormReflWIrrRad(), con, row.names = FALSE)}
@@ -480,63 +716,40 @@ shinyServer(function(input, output) {
     sliderInput('cal_waverange',label = 'Wavelength range for analysis', 
                 min = 305, max = 1145, value = c(400,1000), step = 10)})
   
-  output$rawcalplot <- renderPlot({
-    #Plot the irradiance and radiance for any given (using a slider) panel file.
-    files <- getCalDataList()
-    p <- ggplot(files[[input$calfileslider]], aes(x = wavelength)) + 
-      geom_line(aes(y = irradiance, color = 'irradiance'))+
-      geom_line(aes(y = radiance, color = 'radiance')) +
-      geom_point(aes(y = irradiance, color = 'irradiance')) +
-      geom_point(aes(y = radiance, color = 'radiance')) +
-      scale_x_continuous(limits = input$cal_waverange) +
-      scale_y_continuous(limits=c(0, 70000)) +
-      ylab("") + 
-      scale_colour_brewer(type = "qual", palette = 6, name = "") +
-      theme(legend.position = "top")
-    ggsave(filename = "plots/calibration_raw_single_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
-  })
-  
   output$rawcalirrplots <- renderPlot({
-    #Plot all of the irradiance for a given set of panel files
-    data <- getCalDataFrame()
-    p <- ggplot(data, aes(x = wavelength, y = irradiance, colour = filename)) + 
-      geom_line()+
-      geom_point() +
-      scale_x_continuous(limits = input$cal_waverange) +
-      scale_y_continuous(limits=c(0, 70000)) +
-      ylab("Irradiance") + theme(legend.position="none")
-    ggsave(filename = "plots/calibration_raw_irradiance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
+    print(plotCalIrradiance())
   })
   
   output$rawcalradplots <- renderPlot({
-    #Plot all of the radiance for a given set of panel files
-    data <- getCalDataFrame()
-    p <- ggplot(data, aes(x = wavelength, y = radiance, colour = filename)) + 
-      geom_line()+
-      geom_point() +
-      scale_x_continuous(limits = input$cal_waverange) +
-      scale_y_continuous(limits=c(0, 70000)) +
-      ylab("Radiance") + theme(legend.position="none")
-    ggsave(filename = "plots/calibration_raw_radiance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
+    print(plotCalRadiance())
   })
   
-  output$calreflplot <- renderPlot({
-    #Plot the average reflectance for the calibration panel
-    calrefl <- getAvgCalRefl()
-    p <- ggplot(calrefl, aes(x = wavelength, y = avg)) +
-      geom_line(colour = 'darkblue') +
-      geom_point(colour = 'darkblue') +
-      scale_y_continuous(limits=c(0, 3)) +
-      ylab("Avg Panel Reflectance")
-    ggsave(filename = "plots/calibration_reflectance_plot.png", dpi = 300, 
-           width = 6, height = 2, units = "in")
-    print(p)
+  output$rawcalplot <- renderPlot({
+    print(plotCalIrrRadSingle())
+  })
+  
+  output$raweventirrplots <- renderPlot({
+    print(plotEventIrradiance())
+  })
+  
+  output$raweventradplots <- renderPlot({
+    print(plotEventRadiance())
+  })
+  
+  output$raweventplot <- renderPlot({
+    print(plotEventIrrRadSingle())
+  })
+  
+  output$avgcalreflplot <- renderPlot({
+    print(plotAvgCalRefl())
+  })
+  
+  output$avgnormreflplot <- renderPlot({
+    print(plotAvgNormRefl())
+  })
+  
+  output$reflheatmap <- renderPlot({
+    print(plotReflHeatMap())
   })
   
   #### Event Plots ####
@@ -553,80 +766,6 @@ shinyServer(function(input, output) {
     #allows a user to zoom in.
     sliderInput('event_waverange',label = 'Wavelength range for analysis', 
                 min = 305, max = 1145, value = c(400,1000), step = 10)})
-  
-  output$raweventplot <- renderPlot({
-    #Plot the irradiance and radiance for any given event file (using a slider)
-    files <- getEventDataList()
-    p <- ggplot(files[[input$eventfileslider]], aes(x = wavelength)) + 
-      geom_line(aes(y = irradiance, color = 'irradiance'))+
-      geom_line(aes(y = radiance, color = 'radiance')) +
-      geom_point(aes(y = irradiance, color = 'irradiance')) +
-      geom_point(aes(y = radiance, color = 'radiance')) +
-      scale_x_continuous(limits = input$event_waverange) +
-      ylab("") + 
-      scale_colour_brewer(type = "qual", palette = 6, name = "") +
-      theme(legend.position = "top")
-    ggsave(filename = "plots/single_event_radiance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
-  })
-  
-  output$reflmap <- renderPlot({
-    #Plot a color map of the normalized reflectance for any given event file 
-    #(using the same slider)
-    data <- getEventNormRefl()
-    limitNR <- getLimitNR()
-    if(limitNR == "nl"){lim <- 2}else{lim <- 1}
-    p <- ggplot(data, aes(x = location, y = wavelength, fill = normrefl)) +
-      geom_raster() + 
-      scale_y_continuous(limits = c(400,1000)) +
-      scale_fill_continuous(name="Normalized\nReflectance", limits = c(0,lim)) +
-      theme(legend.key.height = unit(1, "cm"))
-    ggsave(filename = "plots/reflectance_map.png", 
-           dpi = 300, width = 6, height = 3, units = "in")
-    print(p)
-  })
-  
-  output$raweventirrplots <- renderPlot({
-    #Plot all of the irradiance for a given set of panel files
-    data <- getEventDataFrame()
-    p <- ggplot(data, aes(x = wavelength, y = irradiance, colour = filename)) + 
-      geom_line()+
-      geom_point() +
-      scale_x_continuous(limits = input$event_waverange) +
-      ylab("Irradiance") + theme(legend.position="none")
-    ggsave(filename = "plots/event_raw_irradiance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
-  })
-  
-  output$raweventradplots <- renderPlot({
-    #Plot all of the radiance for a given set of panel files
-    data <- getEventDataFrame()
-    
-    p <- ggplot(data, aes(x = wavelength, y = radiance, colour = filename)) + 
-      geom_line()+
-      geom_point() +
-      scale_x_continuous(limits = input$event_waverange) +
-      ylab("Radiance") + theme(legend.position="none")
-    ggsave(filename = "plots/event_raw_radiance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
-  })
-  
-  output$eventreflplot <- renderPlot({
-    #Plot average normalized reflectance for the event files
-    p <- ggplot(getEventAvgNormRefl(), aes(x = wavelength, y = avgnormrefl)) +
-      geom_line(colour = 'darkblue') +
-      geom_point(colour = 'darkblue') +
-      geom_smooth() +                                 
-      scale_x_continuous(limits = input$event_waverange) +
-      scale_y_continuous(limits=c(0, 2)) +
-      ylab("Avg. Normalized Reflectance")
-    ggsave(filename = "plots/event_reflectance_plot.png", 
-           dpi = 300, width = 6, height = 2, units = "in")
-    print(p)
-  })
   
   #### Single index plots ####
   
@@ -651,8 +790,8 @@ shinyServer(function(input, output) {
       ylab("Index value") +
       theme(axis.text = element_text(size=12),
             axis.title = element_text(size = 14))
-    ggsave(filename = "plots/triple_index_plot.png", dpi = 300, width = 6, height = 3, 
-           units = "in")
+    # ggsave(filename = "plots/triple_index_plot.png", dpi = 300, width = 6, height = 3, 
+    #        units = "in", type = "quartz")
     tripleindexplot <- p
     print(p)
     
