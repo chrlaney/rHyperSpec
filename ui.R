@@ -209,6 +209,7 @@ shinyUI(navbarPage("rHyperSpec", id = "nav",
                    
                    tabPanel('Event Plots',
                             includeMarkdown("sources/AboutEventPlots.Rmd"),
+                            downloadButton('downloadEventData', 'Download Event Data'),
                             downloadButton('downloadEventIrradiancePlot', "Download irradiance plot"),
                             downloadButton('downloadEventRadiancePlot', "Download radiance plot"),
                             downloadButton('downloadEventSingleIrrRadPlot', "Download single irradiance/radiance plot"),
@@ -228,28 +229,25 @@ shinyUI(navbarPage("rHyperSpec", id = "nav",
                    
            
                    tabPanel('Table of Calculated Indices',
+                            downloadButton('downloadIndexData', 'Download Index Data'),
+                            hr(),
                             dataTableOutput('allIndexTable')), 
                    
                    tabPanel('Table of Average Index Values',
+                            downloadButton('downloadIndexSummaries', 'Download Index Summary Data'),
+                            hr(),
                             dataTableOutput('summaryIndexTable')), 
                    
-                   tabPanel('Index Plots',
+                   tabPanel('Index by Location Plots',
                             div(class="row-fluid",
-                                div(class="span3", 
-                                    selectInput(inputId = 'indexname1', label = 'Index 1:', 
-                                                choices = indexlist[,2], selected = 'ndvi1')),
-                                div(class="span3",
-                                    selectInput(inputId = 'indexname2', label = 'Index 2:', 
-                                                choices = indexlist[,2], selected = 'pri1')),
-                                div(class="span3",
-                                    selectInput(inputId = 'indexname3', label = 'Index 3:', 
-                                                choices = indexlist[,2], selected = 'wbi'))
-                            ),
+                                    selectInput(inputId = 'indexnames', label = 'Select indices of interest:', 
+                                                choices = indexlist[,2], selected = 'ndvi1',
+                                                multiple = TRUE)),
                             selectInput('smoothtype', 'Smoothing Method:',
                                         choices = c('loess','lm','glm','rlm','gam'), 
                                         selected = 'loess'),
-                            plotOutput('triplelegend', height = "70px"),
-                            plotOutput('tripleindexplot', height = "400px")),
+                            downloadButton('downloadIndexByLocationPlot', 'Download plot'),
+                            plotOutput('indexbylocationplot', height = "400px")),
                    
                    
                    tabPanel('Index Comparison Plots',
@@ -257,5 +255,6 @@ shinyUI(navbarPage("rHyperSpec", id = "nav",
                                         indexlist[,2], selected = 'green1'),
                             selectInput('yindex', 'Y-axis Index:',
                                         indexlist[,2], 'ndvi1'),
-                            plotOutput('dynindexcompplot'))           
+                            downloadButton('downloadIndexCompPlot', 'Download plot'),
+                            plotOutput('indexcompplot'))           
 ))

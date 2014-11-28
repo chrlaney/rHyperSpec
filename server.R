@@ -525,6 +525,43 @@ shinyServer(function(input, output) {
     p
   })
   
+  plotIndexByLocation <- reactive({
+    data <- getIndices()
+    data <- melt(data, id.vars = c("location","date","event_no"))
+    data <- data[data$variable %in% input$indexnames,]
+    p <- ggplot(data, aes(x = location, y = value, group = variable, colour = variable)) +
+      geom_point() +
+      geom_line(size = 0.5) +
+      geom_smooth(method = input$smoothtype,   
+                  formula = y ~ x, size = 1.5) +
+      scale_x_continuous(breaks = c(seq(0,110,10))) +
+      ylab("Index value") +
+      theme(axis.text = element_text(size=12),
+            axis.title = element_text(size = 14),
+            legend.position = "top",
+            legend.key.height = unit(1, "cm"),
+            legend.text = element_text(size = 12),
+            legend.title = element_text(size = 12),
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
+  plotIndexComparison <- reactive({
+    aes_mapping <- aes_string(x = input$xindex, y = input$yindex)
+    data <- getIndices()
+    p <- ggplot(data, mapping = aes_mapping) +
+      geom_point() +
+      geom_smooth(method = "lm", formula = y ~ x) +
+      theme(axis.text = element_text(size=12),
+            axis.title = element_text(size = 14),
+            panel.grid.major.y = element_line(size = .5, colour = "gray80"),
+            panel.grid.major.x = element_line(size = .5, colour = "gray80"),
+            panel.background = element_rect(fill = "white"))
+    p
+  })
+  
   #### Output simple timestamp and tables ####
   
   output$caltimestamp <- renderText({
@@ -671,13 +708,39 @@ shinyServer(function(input, output) {
       dev.off()
     })
     
+  output$downloadIndexByLocationPlot <- downloadHandler(
+#    indexnames <- input$indexnames,
+#    newname <- indexnames[1],
+#    if(length(indexnames > 1)){
+#      for(i in 2:length(indexnames)){
+#        newname <- paste(newname, indexnames[i], sep = "-") 
+#    }},
+    filename = function() {paste('plot_index-by-location_', getDate(), '-event', 
+                                 input$eventno, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 4, units = "in", res = 300)
+      print(plotIndexByLocation())   
+      dev.off()
+    })
+
+  output$downloadIndexCompPlot <- downloadHandler(
+    filename = function() {paste('plot_index-comp-plot_',getDate(), '-event', 
+                                 input$eventno, ".png", 
+                                 sep = '')}, 
+    content = function(file) {
+      png(file, width = 6.5, height = 3, units = "in", res = 300)
+      print(plotIndexComparison())   
+      dev.off()
+    })
+  
   output$downloadEventData <- downloadHandler(
-    filename = function() {paste('eventdata-', Sys.Date(), '.csv', sep = '')},
+    filename = function() {paste('eventdata-', getDate(), '-event', input$eventno, '.csv', sep = '')},
     content = function(con) {write.csv(getEventNormReflWIrrRad(), con, row.names = FALSE)}
   )
   
   output$downloadIndexData <- downloadHandler(
-    filename = function() {paste('indexdata-', Sys.Date(), '.csv', sep = '')},
+    filename = function() {paste('indexdata-', getDate(), '-event', input$eventno, '.csv', sep = '')},
     content = function(con) {write.csv(getIndices(), con, row.names = FALSE)}
   )
   
@@ -703,7 +766,21 @@ shinyServer(function(input, output) {
                                               contentType = "application/pdf"
   )
   
-  #### Panel Plots ####
+  #### Sliders ####
+  output$eventFileSlider <- renderUI({
+    #output a slider bar for the panel files, to be used with 'raweventplot'
+    n <- nrow(as.data.frame(input$eventfiles))
+    sliderInput('eventfileslider', "View irradiance and radiance by file", 
+                min = 1,  max = n , value = 1, step = 1)   
+  }) 
+  
+  output$eventWaveSlider <- renderUI({
+    #output a slider bar to select the wavelength range to be used in plotting - 
+    #allows a user to zoom in.
+    sliderInput('event_waverange',label = 'Wavelength range for analysis', 
+                min = 305, max = 1145, value = c(400,1000), step = 10)})
+
+  #### Plots ####
   output$calFileSlider <- renderUI({
     #output a slider bar for the panel files, to be used with 'rawcalplot'
     n <- nrow(as.data.frame(input$calfiles))
@@ -752,69 +829,12 @@ shinyServer(function(input, output) {
     print(plotReflHeatMap())
   })
   
-  #### Event Plots ####
-  
-  output$eventFileSlider <- renderUI({
-    #output a slider bar for the panel files, to be used with 'raweventplot'
-    n <- nrow(as.data.frame(input$eventfiles))
-    sliderInput('eventfileslider', "View irradiance and radiance by file", 
-                min = 1,  max = n , value = 1, step = 1)   
-  }) 
-  
-  output$eventWaveSlider <- renderUI({
-    #output a slider bar to select the wavelength range to be used in plotting - 
-    #allows a user to zoom in.
-    sliderInput('event_waverange',label = 'Wavelength range for analysis', 
-                min = 305, max = 1145, value = c(400,1000), step = 10)})
-  
-  #### Single index plots ####
-  
-  output$tripleindexplot <- renderPlot({
-    data <- getIndices()
-    aes_mapping1 <- aes_string(x = "location", y = input$indexname1)
-    aes_mapping2 <- aes_string(x = "location", y = input$indexname2)
-    aes_mapping3 <- aes_string(x = "location", y = input$indexname3)
-    p <- ggplot(data, mapping = aes_mapping1)+
-      geom_point(mapping = aes_mapping1, colour = "red") +
-      geom_line(mapping = aes_mapping1, colour = "red", size = 0.5) +
-      geom_smooth(mapping = aes_mapping1, method = input$smoothtype,   
-                  formula = y ~ x, colour = "red", size = 1.5) +
-      geom_point(mapping = aes_mapping2, colour = "blue") +   
-      geom_line(mapping = aes_mapping2, colour = "blue", size = 0.5) +
-      geom_smooth(mapping = aes_mapping2, method = input$smoothtype,
-                  formula = y ~ x, colour = "blue", size = 1.5) +
-      geom_point(mapping = aes_mapping3, colour = "darkgreen") +
-      geom_line(mapping = aes_mapping3, colour = "darkgreen", size = 0.5) +
-      geom_smooth(mapping = aes_mapping3, method = input$smoothtype,
-                  formula = y ~ x, colour = "darkgreen", size = 1.5) +
-      ylab("Index value") +
-      theme(axis.text = element_text(size=12),
-            axis.title = element_text(size = 14))
-    # ggsave(filename = "plots/triple_index_plot.png", dpi = 300, width = 6, height = 3, 
-    #        units = "in", type = "quartz")
-    tripleindexplot <- p
-    print(p)
-    
+  output$indexbylocationplot <- renderPlot({
+    print(plotIndexByLocation())
   })
   
-  output$triplelegend <- renderPlot({
-    par(oma = c(0,0,0,0), mar = c(0,0,0,0))
-    plot(1:10, 1:10, bg = "transparent", bty = "n", type = "n", xlab = "", 
-         ylab = "", xaxt = "n", yaxt = "n")
-    legend(8,10, c(input$indexname1, input$indexname2, input$indexname3), 
-           col = c("red","blue","darkgreen"), lwd = 2.5, cex = 1.4, bty = "n")
-    dev.off()
-  })
-  
-  #### Index comparison plots ####
-  
-  output$dynindexcompplot <- renderPlot({
-    aes_mapping <- aes_string(x = input$xindex, y = input$yindex)
-    data <- getIndices()
-    p <- ggplot(data, mapping = aes_mapping) +
-      geom_point() +
-      geom_smooth(method = "lm", formula = y ~ x)
-    print(p)
+  output$indexcompplot <- renderPlot({
+    print(plotIndexComparison())
   })
   
 })
