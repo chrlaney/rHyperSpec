@@ -1,4 +1,4 @@
-**rHyperSpec version 1.0 (2017-04-15) -- "Bear Peak"
+**rHyperSpec version 1.0 (2017-04-15) -- "Bear Peak"**
 
 Copyright (C) 2017 Christine Laney under the MIT Licence
 
