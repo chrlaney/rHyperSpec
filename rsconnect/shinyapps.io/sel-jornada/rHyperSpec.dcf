@@ -2,3 +2,4 @@ name: rHyperSpec
 account: sel-jornada
 bundleId: 88720
 url: http://sel-jornada.shinyapps.io/rHyperSpec
+server: shinyapps.io
