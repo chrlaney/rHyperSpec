@@ -9,6 +9,7 @@ rHyperSpec uses the R package *packrat* to make sure that the software may be do
 Valuable contributions have been made to rHyperSpec by Craig Tweedie (conceptual ideas and data), Sergio Vargas (data and testing), John Gamon (conceptual ideas), and Fred Huemmrich (conceptual ideas and spectral indices).
 
 **References**
+
 R Core Team (2015). R: A language and environment for statistical computing. R Foundation for
   Statistical Computing, Vienna, Austria. URL https://www.R-project.org/.
 
